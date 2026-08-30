@@ -1,0 +1,40 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = '汉服婚服网 — 中国汉服婚服知识网站：形制百科、婚嫁六礼、选购指南与租赁实务' } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="generator" content={Astro.generator} />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <a class="brand" href="/">汉服<em>婚服</em>网</a>
+        <div class="tagline">hanfuhunfu.com · 从形制到六礼，汉服婚嫁知识全库</div>
+      </div>
+    </header>
+    <main class="container">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="container">
+        汉服婚服网 · 成都天赐华裳 汉服婚服租赁（武侯区大合仓·星商界4栋2单元11楼1104）<br />
+        本站内容仅供知识参考，形制表述以考古与文献为准
+      </div>
+    </footer>
+  </body>
+</html>

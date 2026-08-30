@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>汉服婚服网 · 内容审核</title>
+  <style>
+    :root { --accent: #9e2b25; --line: #e8e0d4; --muted: #7a6a58; --warn: #b45309; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #fdfbf7; color: #2b2118; padding-bottom: 90px; }
+    .wrap { max-width: 680px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 18px; }
+    .card { border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 12px; background: #fff; }
+    .card .title { font-size: 16px; font-weight: 600; }
+    .meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .badge { display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #f6e8e4; color: var(--accent); margin-right: 6px; }
+    .badge.warn { background: #fef3c7; color: var(--warn); }
+    .btn { display: block; width: 100%; padding: 14px; border: 0; border-radius: 10px; font-size: 16px; margin-top: 8px; }
+    .btn-approve { background: var(--accent); color: #fff; }
+    .btn-reject { background: #fff; border: 1px solid var(--accent); color: var(--accent); }
+    .btn-open { background: none; color: var(--accent); border: 0; font-size: 14px; padding: 0; }
+    .bar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--line); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+    .bar-inner { max-width: 680px; margin: 0 auto; display: flex; gap: 10px; }
+    .bar .btn { margin: 0; }
+    .prose { line-height: 1.8; }
+    .prose h2 { font-size: 18px; }
+    .prose blockquote { border-left: 3px solid var(--accent); background: #f6e8e4; margin: 1em 0; padding: 8px 14px; color: #5a4a42; }
+    .warn-box { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+    input[type=text], input[type=password] { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 16px; }
+    .back { font-size: 14px; color: var(--muted); }
+    .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+  </style>
+</head>
+<body>
+<div class="wrap" id="app">加载中…</div>
+<div class="bar" id="bar" style="display:none"><div class="bar-inner">
+  <button class="btn btn-reject" onclick="doReject()">驳回</button>
+  <button class="btn btn-approve" onclick="doApprove()">通过并发布</button>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+const API = '';
+let token = localStorage.getItem('review_token') || '';
+let current = null;
+
+function headers() { return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }; }
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, { ...opts, headers: { ...headers(), ...(opts.headers || {}) } });
+  if (res.status === 401) { renderLogin(); throw new Error('unauthorized'); }
+  return res.json();
+}
+
+function renderLogin() {
+  document.getElementById('bar').style.display = 'none';
+  document.getElementById('app').innerHTML = `
+    <h1>汉服婚服网 · 内容审核</h1>
+    <p style="color:var(--muted);font-size:14px;">请输入审核口令</p>
+    <input type="password" id="tk" placeholder="REVIEW_TOKEN" />
+    <button class="btn btn-approve" style="margin-top:12px" onclick="login()">进入</button>`;
+}
+
+function login() {
+  token = document.getElementById('tk').value.trim();
+  localStorage.setItem('review_token', token);
+  loadQueue();
+}
+
+async function loadQueue() {
+  const list = await api('/api/queue?status=pending');
+  if (!Array.isArray(list)) return;
+  document.getElementById('bar').style.display = 'none';
+  if (!list.length) {
+    document.getElementById('app').innerHTML = '<div class="empty">🎉 今日无待审内容</div>';
+    return;
+  }
+  document.getElementById('app').innerHTML =
+    `<h1>待审 ${list.length} 篇</h1>` +
+    list.map(a => `
+      <div class="card">
+        <div class="title">${esc(a.title)}</div>
+        <div class="meta">
+          <span class="badge">${esc(a.level)} 级</span>${esc(a.channelName)}
+          ${a.lexicon?.score === 'warn' ? '<span class="badge warn">含高危表述</span>' : ''}
+        </div>
+        <button class="btn-open" onclick="openArticle('${a.id}')">预览全文 ›</button>
+      </div>`).join('');
+}
+
+async function openArticle(id) {
+  current = await api('/api/articles/' + id);
+  if (!current || !current.id) return;
+  const warns = current.lexicon?.warns || [];
+  document.getElementById('app').innerHTML = `
+    <p class="back"><a href="javascript:loadQueue()">‹ 返回列表</a></p>
+    ${warns.length ? `<div class="warn-box"><b>⚠️ 形制词表警示（${warns.length} 处，需人工确认）</b><br>` +
+      warns.map(w => `· ${esc(w.reason)}<br>建议：${esc(w.fix)}`).join('') + '</div>' : ''}
+    <h1 style="font-size:20px;">${esc(current.title)}</h1>
+    <div class="meta" style="margin-bottom:16px;"><span class="badge">${esc(current.level)} 级</span>${esc(current.channelName)}</div>
+    <div class="prose">${marked.parse(current.markdown || '')}</div>`;
+  document.getElementById('bar').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+async function doApprove() {
+  if (!current) return;
+  if (!confirm('确认通过并发布？')) return;
+  const r = await api('/api/articles/' + current.id + '/approve', { method: 'POST' });
+  alert(r.ok ? '✅ 已通过，稍后随站点构建发布' : '失败：' + (r.error || JSON.stringify(r)));
+  loadQueue();
+}
+
+async function doReject() {
+  if (!current) return;
+  const reason = prompt('驳回原因（一句话，会回流给重新生成）：');
+  if (reason === null) return;
+  const r = await api('/api/articles/' + current.id + '/reject', { method: 'POST', body: JSON.stringify({ reason }) });
+  alert(r.ok ? '已驳回，将回流重新生成' : '失败：' + (r.error || ''));
+  loadQueue();
+}
+
+token ? loadQueue() : renderLogin();
+</script>
+</body>
+</html>

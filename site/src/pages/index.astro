@@ -1,0 +1,39 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { CHANNELS } from '../lib/channels';
+
+const articles = (await getCollection('articles', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+const countByChannel = new Map<string, number>();
+for (const a of articles) countByChannel.set(a.data.channel, (countByChannel.get(a.data.channel) ?? 0) + 1);
+
+const latest = articles.slice(0, 8);
+---
+
+<Base title="汉服婚服网 - 中国汉服婚服知识网站" description="汉服婚服知识全库：形制百科、婚嫁六礼、选购决策、价格租赁与成都本地服务，唐制/宋制/明制汉服婚服租赁知识一站查询。">
+  <section>
+    <h2 style="font-size:20px;">知识频道</h2>
+    {CHANNELS.map((ch) => (
+      <a class="channel-card" href={`/channels/${ch.id}/`}>
+        <h3><span class="code">{ch.code}</span>{ch.name} <span style="font-size:12px;color:var(--muted);font-weight:400;">{countByChannel.get(ch.id) ?? 0} 篇</span></h3>
+        <p>{ch.description}</p>
+      </a>
+    ))}
+  </section>
+
+  {latest.length > 0 && (
+    <section style="margin-top:40px;">
+      <h2 style="font-size:20px;">最新发布</h2>
+      <ul class="article-list">
+        {latest.map((a) => (
+          <li>
+            <a class="title" href={`/articles/${a.id}/`}>{a.data.title}</a>
+            <div class="meta"><span class="badge">{a.data.level} 级</span>{a.data.description}</div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+</Base>

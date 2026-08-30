@@ -1,0 +1,47 @@
+---
+import Base from './Base.astro';
+import { channelBySlug } from '../lib/channels';
+
+interface Props {
+  title: string;
+  description: string;
+  pubDate: Date;
+  channel: string;
+  level: string;
+  keywords: string[];
+}
+
+const { title, description, pubDate, channel, level, keywords } = Astro.props;
+const ch = channelBySlug(channel);
+const canonical = new URL(Astro.url.pathname, Astro.site);
+
+// JSON-LD：AI 搜索引用的结构化锚点
+const jsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: title,
+  description,
+  datePublished: pubDate.toISOString(),
+  keywords: keywords.join(','),
+  author: { '@type': 'Organization', name: '汉服婚服网' },
+  publisher: { '@type': 'Organization', name: '汉服婚服网', url: 'https://hanfuhunfu.com' },
+  mainEntityOfPage: canonical.href,
+});
+---
+
+<Base title={`${title} - 汉服婚服网`} description={description}>
+  <script type="application/ld+json" set:html={jsonLd} />
+  <nav class="breadcrumb">
+    <a href="/">首页</a> / {ch ? <a href={`/channels/${ch.id}/`}>{ch.name}</a> : channel}
+  </nav>
+  <article>
+    <h1 class="article-title">{title}</h1>
+    <div class="article-meta">
+      <span class="badge">{level} 级</span>
+      发布于 {pubDate.toISOString().slice(0, 10)}
+    </div>
+    <div class="prose">
+      <slot />
+    </div>
+  </article>
+</Base>
