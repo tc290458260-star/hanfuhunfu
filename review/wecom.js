@@ -18,13 +18,15 @@ export async function pushMarkdown(content) {
   return { sent: true };
 }
 
-// 早 9 点审核提醒
+// 早 9 点审核提醒（铺量模式：区分"一键通过"和"逐篇人工"两类）
 export function reviewDigest(pending, warned) {
+  const clean = pending.length - warned;
   const lines = [
     '**【汉服婚服网 · 今日待审】**',
     `待审文章：${pending.length} 篇`,
   ];
-  if (warned > 0) lines.push(`⚠️ 其中 ${warned} 篇含形制高危表述，需重点看高亮段落`);
+  if (clean > 0) lines.push(`⚡ ${clean} 篇零警示 → 打开审核页一键通过即可`);
+  if (warned > 0) lines.push(`⚠️ ${warned} 篇含形制高危表述，需逐篇看高亮段落确认`);
   lines.push(`> [点此审核](http://${process.env.REVIEW_PUBLIC_HOST || 'localhost:3001'}/)`);
   return lines.join('\n');
 }

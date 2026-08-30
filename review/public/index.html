@@ -77,9 +77,22 @@ async function loadQueue() {
     document.getElementById('app').innerHTML = '<div class="empty">🎉 今日无待审内容</div>';
     return;
   }
+  const warnList = list.filter(a => (a.lexicon?.warns?.length || 0) > 0);
+  const cleanList = list.filter(a => (a.lexicon?.warns?.length || 0) === 0);
+  // 铺量模式：零警示的可一键批量通过；含警示的置顶、需逐篇人工确认
+  const sortList = [...warnList, ...cleanList];
   document.getElementById('app').innerHTML =
     `<h1>待审 ${list.length} 篇</h1>` +
-    list.map(a => `
+    (cleanList.length
+      ? `<div class="card" style="background:#f0f7f1;border-color:#cfe3d4;">
+           <div style="font-size:13px;color:#3f6b4f;margin-bottom:8px;">⚡ 铺量模式：${cleanList.length} 篇零警示内容已过形制词表自动质检（无 block 违规、无 warn 高危表述），可一键通过。</div>
+           <button class="btn" style="background:#3f6b4f;color:#fff;" onclick="bulkApprove()">一键通过 ${cleanList.length} 篇</button>
+         </div>`
+      : '') +
+    (warnList.length
+      ? `<p class="meta" style="margin:14px 0 6px;">⚠️ 以下 ${warnList.length} 篇含形制高危表述，需逐篇人工确认：</p>`
+      : '') +
+    sortList.map(a => `
       <div class="card">
         <div class="title">${esc(a.title)}</div>
         <div class="meta">
@@ -88,6 +101,13 @@ async function loadQueue() {
         </div>
         <button class="btn-open" onclick="openArticle('${a.id}')">预览全文 ›</button>
       </div>`).join('');
+}
+
+async function bulkApprove() {
+  if (!confirm('将批量通过所有零警示内容并写入站点内容库，确认？')) return;
+  const r = await api('/api/queue/bulk-approve', { method: 'POST' });
+  alert(r.ok ? `✅ 已批量通过 ${r.approved} 篇。剩余 ${r.warnedLeft} 篇含警示，需逐篇人工确认。` : '失败：' + (r.error || JSON.stringify(r)));
+  loadQueue();
 }
 
 async function openArticle(id) {

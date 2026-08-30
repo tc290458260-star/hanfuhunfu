@@ -118,6 +118,27 @@ function reject(id, reason) {
   return { code: 200, body: { ok: true, regenCount: a.regenCount + 1 } };
 }
 
+// 批量通过（铺量模式）：默认通过所有"零 warn"的待审文章；
+// 有 warn（形制高危表述）的必须逐篇人工确认，不参与批量。
+// 也可显式传 ids: [...] 只批量通过指定篇目。
+function bulkApprove(body) {
+  const pending = listArticles('pending');
+  let targets;
+  if (Array.isArray(body?.ids) && body.ids.length) {
+    const set = new Set(body.ids);
+    targets = pending.filter((a) => set.has(a.id));
+  } else {
+    targets = pending.filter((a) => (a.lexicon?.warns?.length || 0) === 0);
+  }
+  let approved = 0;
+  for (const a of targets) { if (approve(a.id).code === 200) approved++; }
+  const warnCount = pending.filter((a) => (a.lexicon?.warns?.length || 0) > 0).length;
+  return {
+    code: 200,
+    body: { ok: true, approved, warnedLeft: warnCount, scanned: pending.length },
+  };
+}
+
 // ---------- 路由 ----------
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -144,6 +165,12 @@ const server = createServer(async (req, res) => {
   // GET /api/queue?status=
   if (req.method === 'GET' && path === '/api/queue') {
     return json(res, 200, listArticles(url.searchParams.get('status')));
+  }
+
+  // POST /api/queue/bulk-approve — 批量通过（铺量模式：零 warn 的一键通过）
+  if (req.method === 'POST' && path === '/api/queue/bulk-approve') {
+    const r = bulkApprove(body);
+    return json(res, r.code, r.body);
   }
 
   // /api/articles/:id

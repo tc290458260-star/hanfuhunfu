@@ -3,6 +3,8 @@
 //   node generate.js --id B102                  生成指定选题
 //   node generate.js --count 3 --level B        批量生成 3 篇 B 级（跳过已生成的）
 //   node generate.js --count 2 --level B --channel CH01   限定频道
+//   node generate.js --all                      铺量模式：跑完全部未生成的 A+B 级选题
+//                                              （自动限速 1s/篇、429 自动退避重试、失败下次自动补跑）
 // 环境变量读项目根 .env（DEEPSEEK_API_KEY / DEEPSEEK_MODEL / REVIEW_TOKEN / REVIEW_PORT）
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -115,6 +117,20 @@ async function callDeepSeek(messages) {
   return JSON.parse(data.choices[0].message.content);
 }
 
+// 大批量模式：429/5xx 自动退避重试（铺量时 DeepSeek 偶发限流）
+async function callDeepSeekRetry(messages, retries = 3) {
+  for (let i = 0; ; i++) {
+    try { return await callDeepSeek(messages); }
+    catch (e) {
+      const retryable = /DeepSeek (429|5\d\d)/.test(e.message) || /ECONNRESET|fetch failed/i.test(e.message);
+      if (!retryable || i >= retries) throw e;
+      const wait = 5000 * (i + 1);
+      console.warn(`  ↳ 限流/网络抖动（${e.message.slice(0, 60)}），${wait / 1000}s 后重试（第 ${i + 1}/${retries} 次）…`);
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+}
+
 // ---------- 提交审核队列（含 block 回流重试一次） ----------
 async function submitToReview(topic, article) {
   const body = JSON.stringify({
@@ -139,7 +155,7 @@ async function generateOne(topic) {
   console.log(`[${topic.id}] ${topic.title} → 生成中…`);
   let article;
   try {
-    article = await callDeepSeek(buildPrompt(topic));
+    article = await callDeepSeekRetry(buildPrompt(topic));
   } catch (e) {
     console.error(`[${topic.id}] DeepSeek 调用失败：${e.message}`);
     return false;
@@ -154,7 +170,7 @@ async function generateOne(topic) {
       .join('\n');
     console.log(`[${topic.id}] 词表拦截，回流重生成：${feedback.split('\n')[0]}`);
     try {
-      article = await callDeepSeek(buildPrompt(topic, feedback));
+      article = await callDeepSeekRetry(buildPrompt(topic, feedback));
       r = await submitToReview(topic, article);
     } catch (e) {
       console.error(`[${topic.id}] 重生成失败：${e.message}`);
@@ -185,6 +201,9 @@ const id = get('id');
 if (id) {
   picks = topics.filter((t) => t.id === id);
   if (!picks.length) { console.error(`找不到选题 ${id}`); process.exit(1); }
+} else if (args.includes('--all')) {
+  // 铺量模式：一次性跑完全部未生成的 A+B 级选题（S 级仍留给 WorkBuddy 精产）
+  picks = topics.filter((t) => t.level !== 'S' && !state.done[t.id]);
 } else {
   const count = Number(get('count') || 1);
   const level = (get('level') || 'B').toUpperCase();
@@ -194,7 +213,18 @@ if (id) {
 }
 
 if (!picks.length) { console.log('没有待生成选题（可能都生成过了）'); process.exit(0); }
+if (picks.length > 10) console.log(`铺量模式：本次计划 ${picks.length} 篇，预计耗时 ${Math.ceil(picks.length * 25 / 60)} 分钟（含限速间隔）`);
 
 let ok = 0;
-for (const t of picks) { if (await generateOne(t)) ok++; }
+const failed = [];
+for (const t of picks) {
+  if (await generateOne(t)) ok++;
+  else failed.push(t.id);
+  // 批量限速：每篇之间停 1 秒，避免触发 DeepSeek 并发/频率限制
+  if (picks.indexOf(t) < picks.length - 1) await new Promise((r) => setTimeout(r, 1000));
+}
 console.log(`\n完成：${ok}/${picks.length}。审核入口：${REVIEW_URL}/`);
+if (failed.length) {
+  console.log(`失败 ${failed.length} 篇（下次运行会自动重试）：${failed.join(', ')}`);
+  console.log(`补跑命令：node generate.js --count ${failed.length} --level B   （或直接 node generate.js --all）`);
+}
