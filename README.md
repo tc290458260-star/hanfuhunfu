@@ -7,8 +7,12 @@
 
 ```
 hanfuhunfu/
-├── content-map.md        # 内容地图 v1：224 选题 / 14 频道 / S·A·B 分级（生成管线的燃料）
+├── content-map.md        # 内容地图 v1：选题 / 14 频道 / S·A·B 分级（生成管线的燃料）
 ├── hanfu-lexicon.json    # 形制术语校验词表（质检红线：block / warn / prefer 三级）
+├── .env                  # 环境变量（不进 Git）：DEEPSEEK_API_KEY / REVIEW_TOKEN / WECOM_WEBHOOK
+├── generator/            # 内容生成器（B 模式：cron 调 DeepSeek 批量生成）
+│   ├── generate.js       # 解析内容地图 → 注入词表事实基准 → 生成 → 提交审核队列
+│   └── state.json        # 已生成选题记录（不进 Git，防重复生成）
 ├── site/                 # Astro 静态站点（SSG）
 │   └── src/content/articles/<channel>/*.md   # 已发布内容库（审核通过后自动写入）
 └── review/               # 审核后台 MVP（零依赖 Node，职责：待审列表/预览/通过驳回）
@@ -44,6 +48,14 @@ npm run build                              # 产物 dist/，服务器 Nginx 托�
 # 审核后台
 cd review && REVIEW_TOKEN=你的口令 node server.js   # http://localhost:3001
 # 推送提醒（可选）：环境变量 WECOM_WEBHOOK=企微群机器人地址
+
+# 内容生成（需先启动 review 后台；配置在根目录 .env）
+cd generator
+node generate.js --id B102                        # 生成指定选题
+node generate.js --count 3 --level B              # 批量 3 篇 B 级（跳过已生成）
+node generate.js --count 2 --level A --channel CH01  # 限定频道
+# block 级违规自动带质检反馈回流重生成一次；仍违规则报告失败
+# 服务器 cron：凌晨 3 点批量生成（闲时价），早 9 点 POST /api/push-digest 推送审核提醒
 ```
 
 ## 部署要点（腾讯云 CVM，Nginx 已统一分流）
@@ -67,7 +79,7 @@ cd review && REVIEW_TOKEN=你的口令 node server.js   # http://localhost:3001
 
 ## 下一步
 
-- [ ] 生成脚本：cron 调 DeepSeek（等 API key），prompt 模板注入 `factBaseForPrompt()`
+- [x] 生成脚本：`generator/generate.js`（DeepSeek deepseek-v4-flash，词表事实基准注入，block 回流重试）
 - [ ] 审核通过后 git commit 自动化 + 站点构建发布 + sitemap 提交
 - [ ] 企微机器人 webhook 配置（建群加机器人即可，免认证）
 - [ ] S 级 22 篇精产（从 content-map.md 的 S 选题开始）

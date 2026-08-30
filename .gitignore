@@ -3,3 +3,5 @@ dist/
 review/data/
 review/.env
 .astro/
+.env
+generator/state.json
