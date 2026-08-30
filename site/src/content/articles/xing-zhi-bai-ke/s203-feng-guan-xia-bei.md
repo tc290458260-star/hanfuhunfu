@@ -5,6 +5,7 @@ channel: xing-zhi-bai-ke
 level: S
 keywords: [凤冠霞帔, 明制婚服, 蟒袍]
 pubDate: 2026-08-30
+draft: true
 ---
 
 > 本文为站点骨架示例文章（占位），S 级内容由 WorkBuddy 精产后替换。

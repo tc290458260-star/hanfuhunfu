@@ -1,0 +1,16 @@
+---
+// 桌面端紧凑型搜索框（与 SiteHeader 复用同一表单结构）
+// 这里作为独立组件备用，主要样式在 global.css 的 .search-box
+interface Props {
+  variant?: 'header' | 'page';
+  initialQuery?: string;
+}
+const { variant = 'header', initialQuery = '' } = Astro.props;
+---
+<form class="search-box" action="/search/" method="get" role="search" data-variant={variant}>
+  <svg class="search-box__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="11" cy="11" r="7"></circle>
+    <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
+  </svg>
+  <input type="search" name="q" placeholder={variant === 'page' ? '输入关键词…' : '搜索文章、关键词…'} value={initialQuery} aria-label="搜索文章" />
+</form>

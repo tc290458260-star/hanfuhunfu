@@ -1,0 +1,14 @@
+---
+// 统一容器：max-width 1240px
+// variant: 'page' = 1200px（文章页用，含侧栏）, 'article' = 720px（正文列）
+interface Props {
+  variant?: 'default' | 'page' | 'article';
+  as?: string;
+  class?: string;
+}
+const { variant = 'default', as: Tag = 'div', class: className = '' } = Astro.props;
+const cls = ['container', variant === 'page' && 'container-page', variant === 'article' && 'container-article', className].filter(Boolean).join(' ');
+---
+<Tag class={cls}>
+  <slot />
+</Tag>

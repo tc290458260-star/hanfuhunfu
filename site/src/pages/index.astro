@@ -1,39 +1,233 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import Container from '../components/Container.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import ArticleListItem from '../components/ArticleListItem.astro';
+import CategoryCard from '../components/CategoryCard.astro';
+import EmptyState from '../components/EmptyState.astro';
 import { CHANNELS } from '../lib/channels';
+import { FEATURED_TOPICS } from '../data/featuredTopics';
+import { FAQS } from '../data/faq';
+import { siteConfig } from '../data/siteConfig';
+import { getArticleCover } from '../lib/cover';
 
-const articles = (await getCollection('articles', ({ data }) => !data.draft))
+const allArticles = (await getCollection('articles', ({ data }) => !data.draft))
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
 const countByChannel = new Map<string, number>();
-for (const a of articles) countByChannel.set(a.data.channel, (countByChannel.get(a.data.channel) ?? 0) + 1);
+for (const a of allArticles) countByChannel.set(a.data.channel, (countByChannel.get(a.data.channel) ?? 0) + 1);
+const totalArticles = allArticles.length;
+const totalChannels = CHANNELS.length;
 
-const latest = articles.slice(0, 8);
+// 阅读时间估算
+function readingMinutes(article: (typeof allArticles)[number]) {
+  const n = (article.body || '').length;
+  return Math.max(1, Math.round(n / 600));
+}
+
+// 最新发布：视觉主文章 = 最近一篇有真实图片的文章；没有则用第一篇
+const feature = allArticles[0];
+const featureCover = feature ? getArticleCover(feature) : null;
+const featureReading = feature ? readingMinutes(feature) : null;
+const featureChannel = feature ? CHANNELS.find((c) => c.id === feature.data.channel) : undefined;
+const recent = allArticles.slice(1, 4);
+
+// 专题：动态匹配真实文章 + 图片
+const topicCounts = FEATURED_TOPICS.map((t, i) => {
+  const matched = allArticles.filter((a) =>
+    a.data.keywords?.some((k) => t.matchKeywords.includes(k))
+  );
+  return {
+    ...t,
+    index: i + 1,
+    articles: matched,
+    count: matched.length,
+    image: siteConfig.topicImages[t.id as keyof typeof siteConfig.topicImages] ?? null,
+  };
+});
+
+// 新人常问：动态匹配真实文章，未命中的隐藏
+const faqResolved = FAQS.map((f) => {
+  let target = allArticles.find((a) => a.data.keywords?.some((k) => f.matchKeywords.includes(k)));
+  if (!target && f.fallbackChannel) {
+    target = allArticles.find((a) => a.data.channel === f.fallbackChannel);
+  }
+  return { ...f, target };
+}).filter((f) => f.target);
+
+const heroImage = siteConfig.heroImage;
 ---
-
-<Base title="汉服婚服网 - 中国汉服婚服知识网站" description="汉服婚服知识全库：形制百科、婚嫁六礼、选购决策、价格租赁与成都本地服务，唐制/宋制/明制汉服婚服租赁知识一站查询。">
-  <section>
-    <h2 style="font-size:20px;">知识频道</h2>
-    {CHANNELS.map((ch) => (
-      <a class="channel-card" href={`/channels/${ch.id}/`}>
-        <h3><span class="code">{ch.code}</span>{ch.name} <span style="font-size:12px;color:var(--muted);font-weight:400;">{countByChannel.get(ch.id) ?? 0} 篇</span></h3>
-        <p>{ch.description}</p>
-      </a>
-    ))}
+<Base title="汉服婚服网｜中国汉服婚服与传统婚嫁知识库" description="系统整理中国传统婚服、婚嫁礼仪、服饰形制、纹样文化与婚服选择知识，为汉服婚礼与传统婚嫁文化提供清晰、可检索的参考。">
+  <!-- ======== 01 编辑式 Hero ======== -->
+  <section class="hero">
+    <Container>
+      <div class="hero__inner">
+        <div>
+          <span class="hero__seal">汉服婚服知识库</span>
+          <h1 class="hero__title">
+            汉服婚嫁知识库
+            <span class="hero__title-line">从形制到礼仪，系统而专业</span>
+          </h1>
+          <p class="hero__subtitle">系统整理中国传统婚服、婚嫁礼仪与当代汉服婚礼实践。</p>
+          <p class="hero__desc">从形制、纹样、礼仪，到婚服选择与实际婚礼应用，让相关知识更容易被理解、检索与验证。</p>
+          <div class="hero__actions">
+            <a class="btn btn--primary" href="#latest">开始阅读</a>
+            <a class="btn btn--ghost" href="#channels">浏览知识频道</a>
+          </div>
+        </div>
+        {heroImage ? (
+          <div class="hero__media">
+            <img src={heroImage} alt="汉服婚服主视觉" loading="eager" />
+          </div>
+        ) : (
+          <div class="hero__textgrid" aria-hidden="true">
+            <div class="hero__textgrid-en">HANFU&nbsp;&nbsp;HUNFU</div>
+            <div class="hero__textgrid-title">汉服婚服知识索引</div>
+            <ul class="hero__textgrid-labels">
+              <li>婚嫁礼仪</li>
+              <li>形制纹样</li>
+              <li>婚服选择</li>
+              <li>文化源流</li>
+            </ul>
+          </div>
+        )}
+      </div>
+      <div class="hero__stats">
+        <div class="hero__stat">
+          <div class="hero__stat-num">{totalChannels}</div>
+          <div class="hero__stat-label">知识频道</div>
+        </div>
+        <div class="hero__stat">
+          <div class="hero__stat-num">{totalArticles}</div>
+          <div class="hero__stat-label">已发布文章</div>
+        </div>
+        <div class="hero__stat">
+          <div class="hero__stat-num" style="color: var(--brand);">持续<em>更新</em></div>
+          <div class="hero__stat-label">知识库持续完善</div>
+        </div>
+      </div>
+    </Container>
   </section>
 
-  {latest.length > 0 && (
-    <section style="margin-top:40px;">
-      <h2 style="font-size:20px;">最新发布</h2>
-      <ul class="article-list">
-        {latest.map((a) => (
-          <li>
-            <a class="title" href={`/articles/${a.id}/`}>{a.data.title}</a>
-            <div class="meta"><span class="badge">{a.data.level} 级</span>{a.data.description}</div>
-          </li>
+  <!-- ======== 02 最新发布（图文编辑式） ======== -->
+  <section class="section" id="latest">
+    <Container>
+      <SectionHeading title="最新发布" subtitle="近期整理与发布的汉服婚嫁知识。" moreHref="#all-latest" moreText="查看全部" />
+      {allArticles.length === 0 ? (
+        <EmptyState title="还没有文章" desc="内容正在整理中，先浏览下方知识频道了解网站内容。" links={[{ href: '#channels', label: '查看频道' }]} />
+      ) : (
+        <div class="latest-grid">
+          <div class="latest-feature">
+            {feature && (
+              <>
+                {featureCover && (
+                  <a class="latest-feature__cover" href={`/articles/${feature.id}/`} tabindex="-1" aria-hidden="true">
+                    <img src={featureCover} alt="" loading="lazy" />
+                  </a>
+                )}
+                <div class="latest-feature__meta">
+                  {featureChannel && <a href={`/channels/${feature.data.channel}/`} style="color: var(--muted);">{featureChannel.name}</a>}
+                  <span style="color: var(--border);">·</span>
+                  <span>{feature.data.pubDate.toISOString().slice(0, 10)}</span>
+                  {featureReading && (
+                    <>
+                      <span style="color: var(--border);">·</span>
+                      <span>阅读约 {featureReading} 分钟</span>
+                    </>
+                  )}
+                </div>
+                <a class="latest-feature__title" href={`/articles/${feature.id}/`}>{feature.data.title}</a>
+                {feature.data.description && <p class="latest-feature__excerpt">{feature.data.description}</p>}
+                <a class="latest-feature__more" href={`/articles/${feature.id}/`}>阅读全文 →</a>
+              </>
+            )}
+          </div>
+          <ul class="article-list latest-list">
+            {recent.map((a) => <ArticleListItem article={a} showExcerpt={false} image={getArticleCover(a)} />)}
+          </ul>
+        </div>
+      )}
+    </Container>
+  </section>
+
+  <!-- ======== 03 知识频道（纯文字 Grid） ======== -->
+  <section class="section section--alt" id="channels">
+    <Container>
+      <SectionHeading title="知识频道" subtitle="从婚嫁礼仪、形制纹样，到婚服选择与实际婚礼应用。" moreHref="#all-latest" moreText="浏览全部频道" />
+      <div class="channel-grid">
+        {CHANNELS.map((c) => (
+          <CategoryCard channel={c} count={countByChannel.get(c.id) ?? 0} />
         ))}
-      </ul>
+      </div>
+    </Container>
+  </section>
+
+  <!-- ======== 04 专题阅读（图片优先） ======== -->
+  <section class="section" id="topics">
+    <Container>
+      <SectionHeading title="专题阅读" subtitle="按主题深入：从凤冠到纹样，从唐制到明制" />
+      <div class="topic-grid">
+        {topicCounts.map((t) => {
+          const href = t.count > 0 ? `/articles/${t.articles[0].id}/` : `/channels/${t.fallbackChannel}/`;
+          if (t.image) {
+            return (
+              <a class="topic-card topic-card--image" href={href}>
+                <div class="topic-card__cover">
+                  <img src={t.image} alt={t.title} loading="lazy" />
+                  <span class="topic-card__cover-label">{t.title}</span>
+                  <span class="topic-card__cover-count">{t.count > 0 ? `${t.count} 篇文章` : '内容正在整理'}</span>
+                </div>
+              </a>
+            );
+          }
+          return (
+            <a class="topic-card" href={href}>
+              <span class="topic-card__rule" aria-hidden="true"></span>
+              <div class="topic-card__body">
+                <span class="topic-card__eyebrow">TOPIC {String(t.index).padStart(2, '0')}</span>
+                <h3 class="topic-card__title">{t.title}</h3>
+                <p class="topic-card__desc">{t.description}</p>
+                <span class={`topic-card__count${t.count === 0 ? ' is-empty' : ''}`}>
+                  {t.count === 0 ? '内容正在整理' : `${t.count} 篇文章`}
+                </span>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </Container>
+  </section>
+
+  <!-- ======== 05 新人常问 ======== -->
+  {faqResolved.length > 0 && (
+    <section class="section section--alt" id="faq">
+      <Container>
+        <SectionHeading title="新人常问" subtitle="真正面向普通读者的高频问题。" moreHref="/search/" moreText="更多问题" />
+        <div class="faq-grid">
+          {faqResolved.map((f) => (
+            <a class="faq-item" href={`/articles/${f.target!.id}/`}>
+              <span class="faq-item__mark">Q</span>
+              <span>{f.question}</span>
+              <span class="faq-item__arrow" aria-hidden="true">→</span>
+            </a>
+          ))}
+        </div>
+      </Container>
     </section>
   )}
+
+  <!-- ======== 06 全部最新文章 ======== -->
+  <section class="section" id="all-latest">
+    <Container>
+      <SectionHeading title="全部最新文章" subtitle="按发布时间排序，持续更新。" />
+      {allArticles.length === 0 ? (
+        <EmptyState title="暂无文章" desc="内容正在整理中。" />
+      ) : (
+        <ul class="article-list">
+          {allArticles.map((a) => <ArticleListItem article={a} image={getArticleCover(a)} />)}
+        </ul>
+      )}
+    </Container>
+  </section>
 </Base>

@@ -1,0 +1,19 @@
+---
+// 文章页目录 TOC 展示容器（数据由 Article.astro 的脚本填充）
+// variant: 'desktop' = 右侧 sticky；'mobile' = 正文下方折叠 details
+interface Props {
+  variant: 'desktop' | 'mobile';
+}
+const { variant } = Astro.props;
+---
+{variant === 'mobile' ? (
+  <details class="toc--mobile" id="toc-mobile">
+    <summary>本文目录</summary>
+    <div id="toc-mobile-list"></div>
+  </details>
+) : (
+  <aside class="toc" aria-label="本文目录">
+    <h4 class="toc__title">本文目录</h4>
+    <div id="toc-list"></div>
+  </aside>
+)}

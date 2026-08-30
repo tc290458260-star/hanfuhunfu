@@ -1,0 +1,22 @@
+---
+// 频道卡（首页 4 列独立 Grid 单元）
+import type { Channel } from '../lib/channels';
+
+interface Props {
+  channel: Channel;
+  count?: number;
+}
+const { channel, count = 0 } = Astro.props;
+const isEmpty = count === 0;
+---
+<a class="channel-card" href={`/channels/${channel.id}/`}>
+  <div class="channel-card__code">{channel.code}</div>
+  <h3 class="channel-card__name">{channel.name}</h3>
+  <p class="channel-card__desc">{channel.description}</p>
+  <div class="channel-card__foot">
+    <span class={`channel-card__count${isEmpty ? ' is-empty' : ''}`}>
+      {isEmpty ? '内容正在整理' : `${count} 篇文章`}
+    </span>
+    <span class="channel-card__arrow" aria-hidden="true">→</span>
+  </div>
+</a>

@@ -5,6 +5,7 @@ channel: hun-jia-liu-li
 level: S
 keywords: [婚嫁六礼, 三书六礼, 六礼流程]
 pubDate: 2026-08-30
+draft: true
 ---
 
 > 本文为站点骨架示例文章（占位），S 级内容由 WorkBuddy 精产后替换。

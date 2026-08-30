@@ -1,0 +1,44 @@
+---
+// 文章卡片：支持 withImage / textOnly 两种状态（数据驱动）
+// 有 image → 显示封面；无 image → textOnly（不出现占位框）
+import { channelBySlug } from '../lib/channels';
+
+interface Article {
+  id: string;
+  data: {
+    title: string;
+    description: string;
+    channel: string;
+    level: 'S' | 'A' | 'B';
+    pubDate: Date;
+    keywords?: string[];
+  };
+}
+interface Props {
+  article: Article;
+  image?: string;
+  showExcerpt?: boolean;
+}
+const { article, image, showExcerpt = true } = Astro.props;
+const ch = channelBySlug(article.data.channel);
+const dateStr = article.data.pubDate.toISOString().slice(0, 10);
+const cls = ['article-card', !image && 'article-card--text'].filter(Boolean).join(' ');
+---
+<a class={cls} href={`/articles/${article.id}/`}>
+  {image && (
+    <div class="article-card__cover">
+      <img src={image} alt={article.data.title} loading="lazy" />
+    </div>
+  )}
+  <div class="article-card__body">
+    <div class="article-card__meta">
+      {ch && <span>{ch.name}</span>}
+      <span class="article-card__meta-sep">·</span>
+      <span>{dateStr}</span>
+    </div>
+    <h3 class="article-card__title">{article.data.title}</h3>
+    {showExcerpt && article.data.description && (
+      <p class="article-card__excerpt">{article.data.description}</p>
+    )}
+  </div>
+</a>

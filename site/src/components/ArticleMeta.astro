@@ -1,0 +1,34 @@
+---
+// 文章元信息：频道 / 发布日期 / 阅读时间（不展示内部等级）
+import { channelBySlug } from '../lib/channels';
+
+interface Props {
+  channel: string;
+  pubDate: Date;
+  readingMinutes?: number;
+  showChannel?: boolean;
+  updatedAt?: Date;
+}
+const { channel, pubDate, readingMinutes, showChannel = false, updatedAt } = Astro.props;
+const ch = channelBySlug(channel);
+const dateStr = pubDate.toISOString().slice(0, 10);
+const updatedStr = updatedAt ? updatedAt.toISOString().slice(0, 10) : null;
+---
+<div class="article-head__meta">
+  {showChannel && ch && <a class="badge" href={`/channels/${ch.id}/`}>{ch.name}</a>}
+  {!showChannel && ch && <span>{ch.name}</span>}
+  <span class="article-head__meta-sep">·</span>
+  <span>{dateStr}</span>
+  {updatedStr && updatedStr !== dateStr && (
+    <>
+      <span class="article-head__meta-sep">·</span>
+      <span>更新于 {updatedStr}</span>
+    </>
+  )}
+  {readingMinutes && (
+    <>
+      <span class="article-head__meta-sep">·</span>
+      <span>阅读约 {readingMinutes} 分钟</span>
+    </>
+  )}
+</div>

@@ -1,0 +1,19 @@
+---
+// 统一区块标题：左标题+副标题，右"更多"链接
+interface Props {
+  title: string;
+  subtitle?: string;
+  moreHref?: string;
+  moreText?: string;
+}
+const { title, subtitle, moreHref, moreText = '查看全部' } = Astro.props;
+---
+<header class="section-heading">
+  <div>
+    <h2 class="section-heading__title">{title}</h2>
+    {subtitle && <span class="section-heading__subtitle">{subtitle}</span>}
+  </div>
+  {moreHref && (
+    <a class="section-heading__more" href={moreHref}>{moreText}</a>
+  )}
+</header>

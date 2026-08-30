@@ -1,0 +1,28 @@
+---
+// 站点底部（精简收口：品牌 + 横向快速链接 + 版权备案）
+const year = new Date().getFullYear();
+---
+<footer class="site-footer">
+  <div class="container">
+    <div class="site-footer__top">
+      <div class="site-footer__brand">
+        <div class="site-footer__brand-name">汉服<em>婚服</em>网</div>
+        <p class="site-footer__brand-desc">从形制到礼仪，汉服婚嫁知识全库。</p>
+      </div>
+      <nav class="site-footer__nav" aria-label="页脚导航">
+        <a href="/#channels">知识频道</a>
+        <a href="/#latest">最新文章</a>
+        <a href="/#topics">专题阅读</a>
+        <a href="/#faq">新人常问</a>
+        <a href="/search/">站内搜索</a>
+      </nav>
+    </div>
+    <div class="site-footer__bottom">
+      <span>© {year} 汉服婚服网 · 本站内容用于传统婚服与婚嫁文化知识整理及科普参考。</span>
+      <span class="site-footer__beian">
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">蜀ICP备2025149135号-2</a>
+        <a href="https://www.beian.gov.cn/" target="_blank" rel="noopener noreferrer">川公网安备51010702044372号</a>
+      </span>
+    </div>
+  </div>
+</footer>

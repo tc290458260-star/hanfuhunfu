@@ -1,0 +1,68 @@
+---
+// 站点顶部导航
+// 导航数据：从中选取 6 个核心频道，链接到 /channels/<id>/
+// 搜索框：桌面端直接显示，提交跳到 /search?q=
+import { CHANNELS } from '../lib/channels';
+
+const NAV_IDS = [
+  'hun-jia-liu-li',     // 婚嫁六礼
+  'xing-zhi-bai-ke',    // 形制百科
+  'xuan-gou-jue-ce',    // 选购决策
+  'chuan-da-zao-xing',  // 穿搭与造型
+  'xin-zhong-shi',      // 新中式专题
+  'wen-hua-leng-zhi-shi', // 文化与冷知识
+];
+const navChannels = NAV_IDS.map((id) => CHANNELS.find((c) => c.id === id)).filter(Boolean);
+
+const path = Astro.url.pathname;
+const isHome = path === '/' || path === '';
+const isSearch = path.startsWith('/search');
+const isChannel = path.startsWith('/channels/');
+const currentChannel = isChannel ? path.split('/')[2] : '';
+---
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="site-header__brand" href="/">
+      <span class="site-header__seal">汉</span>
+      <span class="site-header__brand-text">
+        <span class="site-header__brand-name">汉服<em>婚服</em>网</span>
+        <span class="site-header__brand-tag">从形制到礼仪，汉服婚嫁知识全库</span>
+      </span>
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      <a href="/" class={isHome ? 'is-active' : ''}>首页</a>
+      {navChannels.map((c) => (
+        <a href={`/channels/${c!.id}/`} class={currentChannel === c!.id ? 'is-active' : ''}>{c!.name}</a>
+      ))}
+    </nav>
+    <form class="site-header__search search-box" action="/search/" method="get" role="search">
+      <svg class="search-box__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"></circle>
+        <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input type="search" name="q" placeholder="搜索文章、关键词…" value={Astro.url.searchParams.get('q') ?? ''} aria-label="搜索文章" />
+    </form>
+    <button class="site-header__menu-btn" type="button" aria-label="打开菜单" aria-controls="mobile-nav" aria-expanded="false" id="menu-btn">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+  </div>
+  <nav class="site-nav--mobile" id="mobile-nav" aria-label="移动导航">
+    <a href="/" class={isHome ? 'is-active' : ''}>首页</a>
+    {navChannels.map((c) => (
+      <a href={`/channels/${c!.id}/`} class={currentChannel === c!.id ? 'is-active' : ''}>{c!.name}</a>
+    ))}
+    <a href="/search/" class={isSearch ? 'is-active' : ''}>搜索</a>
+  </nav>
+</header>
+
+<script>
+  // 移动端菜单开关
+  const btn = document.getElementById('menu-btn');
+  const drawer = document.getElementById('mobile-nav');
+  if (btn && drawer) {
+    btn.addEventListener('click', () => {
+      const open = drawer.classList.toggle('is-open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  }
+</script>

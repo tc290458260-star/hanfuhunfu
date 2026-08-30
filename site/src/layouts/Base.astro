@@ -1,40 +1,79 @@
 ---
 import '../styles/global.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
 
 interface Props {
   title: string;
   description?: string;
+  ogType?: 'website' | 'article';
+  pubDate?: Date;
+  image?: string;
 }
 
-const { title, description = '汉服婚服网 — 中国汉服婚服知识网站：形制百科、婚嫁六礼、选购指南与租赁实务' } = Astro.props;
-const canonical = new URL(Astro.url.pathname, Astro.site);
----
+const {
+  title,
+  description = '汉服婚服网 — 中国汉服婚服与传统婚嫁知识库：形制百科、婚嫁六礼、选购指南、穿搭造型与文化冷知识。',
+  ogType = 'website',
+  pubDate,
+  image,
+} = Astro.props;
 
+const canonical = new URL(Astro.url.pathname, Astro.site);
+// title 拼接：页面统一传"裸标题"，这里追加站点名；首页等以"汉服婚服网"开头的完整标题则不追加
+const trimmedTitle = title.trim();
+const fullTitle = trimmedTitle.startsWith('汉服婚服网') ? trimmedTitle : `${trimmedTitle} - 汉服婚服网`;
+
+// WebSite JSON-LD（仅首页；其他页面通过 Article.astro 注入自己的结构化数据）
+const isHome = Astro.url.pathname === '/' || Astro.url.pathname === '';
+const websiteLd = isHome ? JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: '汉服婚服网',
+  url: 'https://hanfuhunfu.com/',
+  description: '中国汉服婚服与传统婚嫁知识库',
+  inLanguage: 'zh-CN',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: 'https://hanfuhunfu.com/search/?q={search_term_string}',
+    'query-input': 'required name=search_term_string',
+  },
+}) : null;
+---
 <!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title}</title>
+    <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <meta name="generator" content={Astro.generator} />
+    <meta name="theme-color" content="#F6F2EA" />
+
+    <!-- OpenGraph -->
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content="汉服婚服网" />
+    <meta property="og:locale" content="zh_CN" />
+    {image && <meta property="og:image" content={image} />}
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    {image && <meta name="twitter:image" content={image} />}
+
+    <!-- WebSite 结构化数据（首页） -->
+    {websiteLd && <script type="application/ld+json" set:html={websiteLd} />}
   </head>
   <body>
-    <header class="site-header">
-      <div class="container">
-        <a class="brand" href="/">汉服<em>婚服</em>网</a>
-        <div class="tagline">hanfuhunfu.com · 从形制到六礼，汉服婚嫁知识全库</div>
-      </div>
-    </header>
-    <main class="container">
+    <SiteHeader />
+    <main>
       <slot />
     </main>
-    <footer class="site-footer">
-      <div class="container">
-        汉服婚服网 · 成都天赐华裳 汉服婚服租赁（武侯区大合仓·星商界4栋2单元11楼1104）<br />
-        本站内容仅供知识参考，形制表述以考古与文献为准
-      </div>
-    </footer>
+    <SiteFooter />
   </body>
 </html>

@@ -1,0 +1,17 @@
+---
+interface Props {
+  title?: string;
+  desc?: string;
+  links?: Array<{ href: string; label: string }>;
+}
+const { title = '本频道内容正在整理', desc = '这一主题的内容正在整理中，先浏览其他频道。', links = [] } = Astro.props;
+---
+<div class="empty-state">
+  <h3 class="empty-state__title">{title}</h3>
+  <p class="empty-state__desc">{desc}</p>
+  {links.length > 0 && (
+    <div class="empty-state__links">
+      {links.map((l) => <a class="btn btn--ghost" href={l.href}>{l.label}</a>)}
+    </div>
+  )}
+</div>

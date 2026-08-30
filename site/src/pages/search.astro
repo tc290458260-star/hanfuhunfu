@@ -1,0 +1,160 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import Container from '../components/Container.astro';
+import ArticleListItem from '../components/ArticleListItem.astro';
+import EmptyState from '../components/EmptyState.astro';
+import { CHANNELS } from '../lib/channels';
+
+const initialQuery = Astro.url.searchParams.get('q')?.trim() ?? '';
+
+const allArticles = (await getCollection('articles', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+// 服务端初筛（用于无 JS / 首屏）
+function match(article: typeof allArticles[number], q: string) {
+  if (!q) return true;
+  const haystack = [
+    article.data.title,
+    article.data.description,
+    ...(article.data.keywords || []),
+    article.data.channel,
+  ].join(' ').toLowerCase();
+  return q.toLowerCase().split(/\s+/).every((token) => haystack.includes(token));
+}
+
+const initialResults = allArticles.filter((a) => match(a, initialQuery));
+
+// 客户端搜索索引（只保留必要字段，最小化体积）
+const searchIndex = allArticles.map((a) => ({
+  id: a.id,
+  title: a.data.title,
+  description: a.data.description,
+  channel: a.data.channel,
+  pubDate: a.data.pubDate.toISOString().slice(0, 10),
+  keywords: a.data.keywords || [],
+}));
+
+const channelById = Object.fromEntries(CHANNELS.map((c) => [c.id, c.name]));
+---
+<Base title={initialQuery ? `搜索：${initialQuery}` : '站内搜索'} description="搜索汉服婚服网全部文章：形制、礼仪、婚服选择、纹样、文化冷知识。">
+  <Container>
+    <nav class="breadcrumb" aria-label="面包屑" style="padding-top: 32px;">
+      <a href="/">首页</a>
+      <span class="breadcrumb__sep">/</span>
+      <span class="breadcrumb__current">搜索</span>
+    </nav>
+  </Container>
+
+  <section class="search-page">
+    <Container>
+      <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 24px; color: var(--text); letter-spacing: 0.5px;">站内搜索</h1>
+      <form id="search-form" action="/search/" method="get" role="search">
+        <input
+          id="search-input"
+          class="search-page__input"
+          name="q"
+          type="search"
+          placeholder="输入关键词（如：凤冠、六礼、明制、纳采）"
+          value={initialQuery}
+          autocomplete="off"
+          autofocus
+        />
+      </form>
+      <div class="search-page__count" id="search-count">
+        {initialQuery
+          ? `找到 ${initialResults.length} 篇与「${initialQuery}」相关的文章`
+          : `共 ${allArticles.length} 篇文章，输入关键词开始搜索`}
+      </div>
+
+      <ul class="article-list" id="search-results">
+        {(initialQuery ? initialResults : allArticles).map((a) => (
+          <ArticleListItem article={a} />
+        ))}
+      </ul>
+
+      <div id="search-empty" style="display: none;">
+        <div class="search-page__empty">
+          <strong>没有找到匹配的文章</strong>
+          <div>试试其他关键词，或浏览下方频道</div>
+        </div>
+      </div>
+    </Container>
+  </section>
+
+  <Container>
+    <div style="padding: 24px 0 80px; border-top: 1px solid var(--border);">
+      <h3 style="font-size: 14px; font-weight: 600; color: var(--text-secondary); letter-spacing: 2px; margin: 24px 0 16px;">或浏览频道</h3>
+      <div class="channel-grid">
+        {CHANNELS.map((c) => (
+          <a class="channel-card" href={`/channels/${c.id}/`}>
+            <div class="channel-card__code">{c.code}</div>
+            <h3 class="channel-card__name">{c.name}</h3>
+            <p class="channel-card__desc">{c.description}</p>
+          </a>
+        ))}
+      </div>
+    </div>
+  </Container>
+
+  <script id="search-data" type="application/json" set:html={JSON.stringify({ articles: searchIndex, channels: channelById })} />
+
+  <script>
+    type Article = { id: string; title: string; description: string; channel: string; pubDate: string; keywords: string[] };
+    type Hit = { article: Article; channelName: string };
+    const dataEl = document.getElementById('search-data');
+    const data = dataEl ? JSON.parse(dataEl.textContent || '{}') : { articles: [], channels: {} as Record<string, string> };
+    const input = document.getElementById('search-input') as HTMLInputElement | null;
+    const form = document.getElementById('search-form') as HTMLFormElement | null;
+    const list = document.getElementById('search-results');
+    const count = document.getElementById('search-count');
+    const empty = document.getElementById('search-empty');
+    if (input && list && count && empty) {
+      function render(q: string) {
+        const tokens = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        const hits: Hit[] = tokens.length === 0
+          ? data.articles.map((a: Article) => ({ article: a, channelName: data.channels[a.channel] || a.channel }))
+          : data.articles
+              .filter((a: Article) => {
+                const hay = [a.title, a.description, ...(a.keywords || []), a.channel].join(' ').toLowerCase();
+                return tokens.every((t: string) => hay.includes(t));
+              })
+              .map((a: Article) => ({ article: a, channelName: data.channels[a.channel] || a.channel }));
+        // 渲染
+        if (hits.length === 0) {
+          list.innerHTML = '';
+          empty.style.display = 'block';
+          count.textContent = q ? `没有找到与「${q}」匹配的文章` : `共 ${data.articles.length} 篇文章`;
+        } else {
+          empty.style.display = 'none';
+          list.innerHTML = hits.map((h) => {
+            const a = h.article;
+            const channel = h.channelName;
+            return `
+              <li class="article-list__item">
+                <div class="article-list__meta">
+                  <a href="/channels/${a.channel}/">${channel}</a>
+                  <span style="color: var(--border)">·</span>
+                  <span>${a.pubDate}</span>
+                </div>
+                <a class="article-list__title" href="/articles/${a.id}/">${a.title}</a>
+                ${a.description ? `<p class="article-list__excerpt">${a.description}</p>` : ''}
+              </li>
+            `;
+          }).join('');
+          count.textContent = q ? `找到 ${hits.length} 篇与「${q}」相关的文章` : `共 ${data.articles.length} 篇文章`;
+        }
+      }
+      // 实时输入：使用 debounce
+      let timer: number | undefined;
+      input.addEventListener('input', () => {
+        if (timer) window.clearTimeout(timer);
+        timer = window.setTimeout(() => render(input.value), 120);
+      });
+      // 防止 Enter 提交（我们自己做实时过滤）
+      if (form) form.addEventListener('submit', (e) => { e.preventDefault(); render(input.value); });
+      // 初始渲染（处理来自 URL ?q= 的初值）
+      render(input.value);
+    }
+  </script>
+</Base>

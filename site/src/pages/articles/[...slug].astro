@@ -3,24 +3,43 @@ import { getCollection, render } from 'astro:content';
 import Article from '../../layouts/Article.astro';
 
 export async function getStaticPaths() {
-  const articles = await getCollection('articles', ({ data }) => !data.draft);
-  return articles.map((entry) => ({
+  const all = await getCollection('articles', ({ data }) => !data.draft);
+  return all.map((entry) => ({
     params: { slug: entry.id },
-    props: { entry },
+    props: { entry, all },
   }));
 }
 
-const { entry } = Astro.props;
+const { entry, all } = Astro.props;
 const { Content } = await render(entry);
----
 
+// 阅读时间估算：按正文字符数（中文按字算，英文按词）/ 300 字每分钟
+// 这里使用 entry.body 估算（render 不返回 body，所以用 .body 字段）
+const body = (entry.body || '').trim();
+const charCount = body.length;
+const readingMinutes = Math.max(1, Math.round(charCount / 600)); // 中文按字 ≈ 600 字/分钟
+
+// 上一篇 / 下一篇：同频道按 pubDate 倒序
+const sameChannel = all
+  .filter((a) => a.data.channel === entry.data.channel && a.id !== entry.id)
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+// 当前文章在同频道的索引
+const currentDate = entry.data.pubDate.valueOf();
+const channelSorted = all
+  .filter((a) => a.data.channel === entry.data.channel)
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+const idx = channelSorted.findIndex((a) => a.id === entry.id);
+const prev = idx > 0 ? channelSorted[idx - 1] : null;
+// 下一篇：比当前更早的
+const next = idx >= 0 && idx < channelSorted.length - 1 ? channelSorted[idx + 1] : null;
+void sameChannel;
+---
 <Article
-  title={entry.data.title}
-  description={entry.data.description}
-  pubDate={entry.data.pubDate}
-  channel={entry.data.channel}
-  level={entry.data.level}
-  keywords={entry.data.keywords}
+  entry={entry}
+  all={all}
+  readingMinutes={readingMinutes}
+  prev={prev}
+  next={next}
 >
   <Content />
 </Article>

@@ -1,0 +1,42 @@
+---
+// 文章列表项（编辑型 / 紧凑型）
+// 支持 withImage（右侧缩略图）/ textOnly（纯文字）
+import { channelBySlug } from '../lib/channels';
+
+interface Article {
+  id: string;
+  data: {
+    title: string;
+    description: string;
+    channel: string;
+    pubDate: Date;
+    keywords?: string[];
+  };
+}
+interface Props {
+  article: Article;
+  showExcerpt?: boolean;
+  image?: string | null;
+}
+const { article, showExcerpt = true, image } = Astro.props;
+const ch = channelBySlug(article.data.channel);
+const dateStr = article.data.pubDate.toISOString().slice(0, 10);
+---
+<li class={`article-list__item${image ? ' has-thumb' : ''}`}>
+  <div class="article-list__content">
+    <div class="article-list__meta">
+      {ch && <a href={`/channels/${ch.id}/`}>{ch.name}</a>}
+      <span style="color: var(--border);">·</span>
+      <span>{dateStr}</span>
+    </div>
+    <a class="article-list__title" href={`/articles/${article.id}/`}>{article.data.title}</a>
+    {showExcerpt && article.data.description && (
+      <p class="article-list__excerpt">{article.data.description}</p>
+    )}
+  </div>
+  {image && (
+    <a class="article-list__thumb" href={`/articles/${article.id}/`} aria-hidden="true" tabindex="-1">
+      <img src={image} alt="" loading="lazy" />
+    </a>
+  )}
+</li>

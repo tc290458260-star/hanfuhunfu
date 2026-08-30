@@ -1,0 +1,43 @@
+---
+// 文章底部相关阅读：同频道其他文章，最多 6 篇，排除当前文章
+import { channelBySlug } from '../lib/channels';
+import ArticleCard from './ArticleCard.astro';
+
+interface Article {
+  id: string;
+  data: {
+    title: string;
+    description: string;
+    channel: string;
+    level: 'S' | 'A' | 'B';
+    pubDate: Date;
+    keywords?: string[];
+  };
+}
+interface Props {
+  current: Article;
+  all: Article[];
+  max?: number;
+}
+const { current, all, max = 6 } = Astro.props;
+const currentId = current.id;
+const ch = channelBySlug(current.data.channel);
+let related = all.filter((a) => a.id !== currentId && a.data.channel === current.data.channel);
+if (related.length < max) {
+  // 不足时补充其他频道（按 pubDate 倒序）
+  const others = all
+    .filter((a) => a.id !== currentId && a.data.channel !== current.data.channel)
+    .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+  related = related.concat(others).slice(0, max);
+} else {
+  related = related.slice(0, max);
+}
+---
+{related.length > 0 && (
+  <section class="related-section">
+    <h3>{ch ? `更多${ch.name}` : '相关阅读'}</h3>
+    <div class="related-grid">
+      {related.map((a) => <ArticleCard article={a} showExcerpt={false} />)}
+    </div>
+  </section>
+)}
