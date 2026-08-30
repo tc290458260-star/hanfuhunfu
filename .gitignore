@@ -5,3 +5,4 @@ review/.env
 .astro/
 .env
 generator/state.json
+*.log
